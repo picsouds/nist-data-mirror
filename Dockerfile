@@ -1,6 +1,15 @@
+FROM alpine/git AS gitclone
+WORKDIR /app
+RUN git clone https://github.com/stevespringett/nist-data-mirror.git
+
+FROM maven:3.5-jdk-8-alpine AS maven
+WORKDIR /app
+COPY --from=gitclone /app/nist-data-mirror /app
+RUN mvn clean package
+
 FROM httpd:alpine
 WORKDIR /app
-COPY script/nist-data-mirror.jar /app
+COPY --from=maven /app/target/nist-data-mirror.jar /app
 RUN apk update && \
     apk add --no-cache openjdk8-jre && \
     rm -f /usr/local/apache2/htdocs/*.html && \
