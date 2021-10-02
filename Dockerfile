@@ -1,3 +1,7 @@
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
 FROM alpine/git AS gitclone
 WORKDIR /app
 RUN git clone https://github.com/stevespringett/nist-data-mirror.git
@@ -9,19 +13,26 @@ RUN mvn clean package
 
 FROM httpd:alpine
 
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
+ENV USER=mirror
+ENV TZ=Europe/Paris
 
 WORKDIR /app
 
 COPY --from=maven /app/target/nist-data-mirror.jar /app
-COPY httpd.conf /usr/local/apache2/conf/
 
 RUN apk update && \
-    apk add --no-cache openjdk8-jre && \
-    rm -f /usr/local/apache2/htdocs/*.html && \
+    apk add --no-cache openjdk8-jre tzdata          && \
+    rm -f /usr/local/apache2/htdocs/*.html          && \
+    addgroup -S $USER                               && \
+    adduser -S $USER -G $USER                       && \
+    chown -R $USER:$USER /usr/local/apache2/htdocs  &&\
+    cp /usr/share/zoneinfo/$TZ /etc/localtime       && \
     echo '0 */4 * * * java $JAVA_OPTS -jar /app/nist-data-mirror.jar /usr/local/apache2/htdocs' > /etc/crontabs/root            
 
+# Conf 
+COPY httpd.conf /usr/local/apache2/conf/    
+COPY .abba/ /usr/local/apache2/htdocs/.abba
+
 # Running the recovery at launch
-CMD (java $JAVA_OPTS -jar /app/nist-data-mirror.jar /usr/local/apache2/htdocs) && ( crond -f -l 2 & ) && httpd -D FOREGROUND
+CMD (java $JAVA_OPTS -jar /app/nist-data-mirror.jar /usr/local/apache2/htdocs) && ( crond -f -l 2 & ) && httpd -D FOREGROUND 
+
