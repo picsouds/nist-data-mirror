@@ -1,3 +1,0 @@
-#!/bin/sh
-rm -f /usr/local/apache2/htdocs/.htaccess
-rm -rf /usr/local/apache2/htdocs/.abba
